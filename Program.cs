@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -93,10 +93,12 @@ namespace HLWSS
         static void Main(string[] args)
         {
         
-            Login sqlDat = new Login();
+            Login sqlDat = new Login(); //test con
            
+            //if()
+
             var server = new Server();
-            server.Start("http://192.168.2.19:81/", sqlDat); //port 81 is open
+            server.Start("http://192.168.2.19:81/"/*, sqlDat*/); //port 81 is open
             Console.WriteLine("Press any key (many times) to exit...");
             Console.ReadKey();
             Console.ReadKey();
@@ -144,8 +146,10 @@ namespace HLWSS
 
         public Login sqlDat;
 
-        public async void Start(string listenerPrefix, Login sqlDatIN)
+        public async void Start(string listenerPrefix/*, Login sqlDatIN*/)
         {
+            Login sqlDatIN = new Login();
+
             GetAllCasualMaps();
 
             sqlDat = sqlDatIN;
@@ -225,6 +229,136 @@ namespace HLWSS
         }
 
         [Serializable]
+        public class InFlightCharData
+        {
+
+            public bool HasTurn = false;
+            public bool MovedAlready = false;
+            public int Ability1 = 0;
+            public int Ability2 = 0;
+            public int RngMinPri;
+            public int RngMaxPri;
+            public int RngMinSec;
+            public int RngMaxSec;
+            public int CurW = 1;
+            public bool ShowSecondary = false;
+            public int AtkBuff = 0;
+            public int DefBuff = 0;
+            public int MovBuff = 0;
+            public int HpBuff = 0;
+            public int Atk2 = 0;
+            public int Def2 = 0;
+            public bool Dead = false;
+            public int PosX;
+            public int PosY;
+            public int team;
+            public int Hp;
+            public int Atk;
+            public int Def;
+            public int Mov;
+            public int PW;
+            public int SW;
+            public int CH;
+            public int CB;
+            public string name;
+
+            public float startRotationX; //eulerAngles
+            public float startRotationY; //eulerAngles
+            public float startRotationZ; //eulerAngles
+
+        }
+
+        [Serializable]
+        public class MapMakerVarsSaveDat
+        {
+
+            public int TileId;
+            public int CDatX = -1; // -1 is null char
+            public int CDatY = -1; // -1 is null char
+
+        }
+
+        [Serializable]
+        public class LocalMatchSaveMapData
+        {
+
+            ////LMICS vars
+            public string SaveMapName; //LCIMS save map name
+
+            public bool HighestHpWin = false;
+            public int HighestHpWinTurnLimit = 30;
+            public bool MonumentWin = false;
+            public int MonumentTurnLimit = 30;
+
+            //store tiles -- with some indiation of char data link
+            //store char dat seperately?!?
+            public List<InFlightCharData> BlueChar = new List<InFlightCharData>();
+            public List<InFlightCharData> RedChar = new List<InFlightCharData>();
+            public List<InFlightCharData> GreenChar = new List<InFlightCharData>();
+            public List<InFlightCharData> YellowChar = new List<InFlightCharData>();
+            public List<InFlightCharData> PurpleChar = new List<InFlightCharData>();
+            //compile into dictionary of all chars using a tuple as key for (x,y) when loading to set char in positions
+
+            public MapMakerVarsSaveDat[][] TilesArray; //char pos is where you fetch char
+
+            ////
+
+            //reg vars from local match start
+            public int Winner = 0;
+            public bool CalcMoveDone = true;
+            public int MovePhase = 0;
+            public int CXPos = 0;
+            public int CYPos = 0;
+            public bool currentlyFighting = false;
+            public int currentTurn = 0;
+            public int CurrentTeamTurn = 0;
+            public int TeamCount = 0;
+            public int MonumentValBlue = 0;
+            public int MonumentValRed = 0;
+            public int MonumentValYellow = 0;
+            public int MonumentValGreen = 0;
+            public int MonumentValPurple = 0;
+            public bool PermaHoverInfoTextOff = false;
+            public string HoverInfoTMP = "";
+            public bool HideTileInfo;
+            public bool attackPrep = false;
+
+            //need to convert vars
+            public Tuple<int, int> HoverTupleStore; //x y pos for tuples and list
+            public Tuple<int, int> SelectedAttackTarget;
+
+            public List<Tuple<int, int>> TmpAbilityTiles = new List<Tuple<int, int>>(); //xy positions of tile to load into dictionary
+            public List<Tuple<int, int>> TmpMoveTiles = new List<Tuple<int, int>>();
+            public List<Tuple<int, int>> TmpAtkTiles = new List<Tuple<int, int>>();
+
+            public int SelectedCharX; // X position
+            public int SelectedCharY; // Y position
+
+            // // is active state bools for game menu stuff
+            public bool IsHoverInfoActive;
+            public bool IsHoverInfoCloseButtonActive;
+            public bool IsActionMenuObjActive;
+            public bool IsCloseActionMenuObjActive;
+            public bool IsCloseActionAtkObjActive;
+            public bool IsActionAbilityInfoObjActive;
+            public bool IsCloseActionAbilityObjActive;
+            public bool IsAttack1Active;
+            public bool AIsttack2Active;
+            public bool IsAbility1Active;
+            public bool IsAbility2Active;
+            public bool IsMoveActive;
+            public bool IsTileInfoObjActive;
+            public bool IsTileInfoToggleActive;
+            public bool IsAttackPrepScreenAttackerActive;
+            public bool IsAttackPrepScreenDefenderActive;
+            public bool IsStartToAttackButtonActive;
+            public bool IsCloseActionRotateObjBackButtonActive;
+            public bool IsWinConditionObjActive;
+            //anim vars?
+
+        }
+
+        [Serializable]
         public class CharDatL
         {
             public List<CharDat> C = new List<CharDat>();
@@ -240,18 +374,58 @@ namespace HLWSS
             public int MatchType = 0;
             public int MapIndex = 0;
             public long paired = 0;
+            public long[] pairedL;
             public bool MatchReady = false;
             public bool CharLoadReady = false;
             public CharDatL YourCharArr = new CharDatL();
             public string Username = "";
 
+            public long MapID = 0;
             public string YourMapData = "";
             public bool NeedToSendMapData = false;
             public long TakeMapDataFrom = 0;
+
+            public bool lookingForFriends = false;
         };
 
         Dictionary<long, UserSpecificData> USR = new Dictionary<long, UserSpecificData>(); //id links to class with stuff
 
+        void InsertMapIDIntoSaveMapID(long ID, long MapID, MySqlCommand cmd)
+        {
+            LocalMatchSaveMapData NameRead = JsonConvert.DeserializeObject<LocalMatchSaveMapData>(USR[ID].YourMapData); //pass char array data into CharDat[] array {this is same array as in game}
+
+
+            List<long> tmpIDs = new List<long> { 0, 0, 0, 0, 0 };
+            for (int i = 0; i < USR[ID].players.Count; i++)
+            {
+                tmpIDs[i] = USR[ID].players[i];
+            }
+            cmd = new MySqlCommand();
+            cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID) VALUES ( " + tmpIDs[0].ToString() + "," + tmpIDs[1].ToString() + "," + tmpIDs[2].ToString() + "," + tmpIDs[3].ToString() + "," + tmpIDs[4].ToString() + ",'" + NameRead.SaveMapName + "','" + USR[ID].YourMapData + "'," + USR[ID].MapID + ")";
+            cmd.Connection = sqlDat.connection;
+            cmd.CommandType = CommandType.Text;
+            cmd.ExecuteNonQuery();
+        }
+
+        long GetNextMapID(long ID, MySqlCommand cmd)
+        {
+            cmd = new MySqlCommand();
+            cmd.CommandText = "SELECT COUNT(MapID) FROM mapsavedata";
+            cmd.Connection = sqlDat.connection;
+            cmd.CommandType = CommandType.Text;
+            
+            return (Int64)cmd.ExecuteScalar();
+
+        }
+
+        void UpdateMapIDFromSaveMapID(long ID, MySqlCommand cmd)
+        {
+            cmd = new MySqlCommand();
+            cmd.CommandText = "UPDATE mapsavedata SET JsonString = '" + USR[ID].YourMapData + "' WHERE MapID = " + USR[ID].MapID;
+            cmd.Connection = sqlDat.connection;
+            cmd.CommandType = CommandType.Text;
+            cmd.ExecuteNonQuery();
+        }
 
         private async void ProcessRequest(HttpListenerContext listenerContext)
         {
@@ -275,9 +449,11 @@ namespace HLWSS
                 MySqlCommand cmd = new MySqlCommand();
 
                 //LOOP LOGIC
+                bool firstTID = false;
+
                 while (webSocket.State == WebSocketState.Open)
                 {
-                    
+
                     buf = new ArraySegment<byte>(new byte[REGMSG]);
                     
                     WebSocketReceiveResult receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None); //await webSocket.ReceiveAsync(buf, CancellationToken.None);
@@ -291,6 +467,9 @@ namespace HLWSS
                         //Recived closed message to kill websocket - means to return we close without message
                         await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
                     }
+                    
+                    //first message must be TID
+
                     else if (receiveResult.MessageType == WebSocketMessageType.Text)
                     {
                         ///
@@ -310,6 +489,8 @@ namespace HLWSS
                             email = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
 
                             //Check if Email is in Sql collumns, if not inside. you continue:
+
+
                             cmd = new MySqlCommand();
                             cmd.CommandText = "SELECT COUNT(email) from (SELECT email FROM player WHERE email = '" + email + "') AS T";
                             cmd.Connection = sqlDat.connection;
@@ -394,7 +575,7 @@ namespace HLWSS
 
                         else if ("TID" == resultR)
                         {// random id from random id table (number not taken yet)
-
+                            firstTID = true;
 
                             cmd = new MySqlCommand();
                             cmd.CommandText = "SELECT COUNT(id) FROM randomid";
@@ -410,7 +591,10 @@ namespace HLWSS
 
 
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            Console.WriteLine("send ID");
+
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+                            receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
 
 
                             cmd = new MySqlCommand();
@@ -421,9 +605,13 @@ namespace HLWSS
 
                             USR[ID] = new UserSpecificData();
 
+                            Console.WriteLine("Now We have Rand ID: " + ID.ToString());
+
                             USR[ID].Username = ID.ToString();
 
                             USR[ID].teamsOrderInv[ID] = 0;
+
+
                             //TODO: at end of day or smthing I clear this random char id thing place
                         }
                         else if ("FID" == resultR)
@@ -519,9 +707,81 @@ namespace HLWSS
                             }
 
                         }
+                        else if (resultR == "FMIP")
+                        {
+                            USR[ID].MapID = 0;
+                            //checked for map id and pass map name to add map - also save map id when loaded
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+                            cmd.CommandText = "SELECT JsonString, MapID, MapName FROM (SELECT * FROM `mapsavedata` WHERE ID1 = " + ID + " || ID2 = " + ID + " || ID3 = " + ID + " || ID4 = " + ID + " || ID5 = " + ID + ") AS T";
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            List<string> JsonDat = new List<string>();
+                            List<long> MapID = new List<long>();
+                            List<string> MapNameDat = new List<string>();
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                JsonDat.Add(sqlReader.GetString(0)); // Json
+                                MapID.Add(sqlReader.GetInt64(1)); // map id
+                                MapNameDat.Add(sqlReader.GetString(2)); // map name
+                            }
+
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(MapNameDat))); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            //TODO: send mapname, and ask character to pick them - in order they repisent when sent back a array index which links to MapID and Json ID, set player map ID before match is loaded to that map id from index and load from that map index battle 1 logic
+
+                        }
+                        else if (resultR == "SBAGMIP")
+                        {
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("f")); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            USR[ID].MapID = 0;
+                            //checked for map id and pass map name to add map - also save map id when loaded
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+                            cmd.CommandText = "SELECT JsonString, MapID, MapName FROM (SELECT * FROM `mapsavedata` WHERE ID1 = " + ID + " || ID2 = " + ID + " || ID3 = " + ID + " || ID4 = " + ID + " || ID5 = " + ID + ") AS T";
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            List<string> JsonDat = new List<string>();
+                            List<long> MapID = new List<long>();
+                            List<string> MapNameDat = new List<string>();
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                JsonDat.Add(sqlReader.GetString(0)); // Json
+                                MapID.Add(sqlReader.GetInt64(1)); // map id
+                                MapNameDat.Add(sqlReader.GetString(2)); // map name
+                            }
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+
+                            receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None); //await webSocket.ReceiveAsync(buf, CancellationToken.None);
+
+                            int MIDTMP = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count));
+
+                            USR[ID].MapID = MapID[MIDTMP];
+
+                            USR[ID].YourMapData = JsonDat[MIDTMP];
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            USR[ID].MatchType = 1;
+                            
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None);
+                        }
                         //Recived text data
                         else if (resultR == "RM")
                         {
+                            USR[ID].MapID = 0;
                             USR[ID].MatchReady = false;
                             USR[ID].CharLoadReady = false;
 
@@ -637,6 +897,240 @@ namespace HLWSS
 
                             Console.WriteLine("done RM setup");
                         }
+                        else if ("GMDF" == resultR)
+                        {
+                            USR[ID].MapID = 0;
+                            USR[ID].MatchReady = false;
+                            USR[ID].CharLoadReady = false;
+
+                            USR[ID].players.Clear();
+                            USR[ID].teamsOrder.Clear();
+                            USR[ID].teamsOrderInv.Clear();
+                            USR[ID].MatchType = 1;
+                            USR[ID].paired = 0;
+                            USR[ID].yourOrder = 0;
+                            USR[ID].YourMapData = "";
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            USR[ID].pairedL = new long[Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count))]; //player count is set
+                            Array.Fill(USR[ID].pairedL, 0);
+                            USR[ID].pairedL[0] = ID;
+
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[BIGBIGMSG]);
+                            RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            int stringSize = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            string tmpString = "";
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            while (tmpString.Length < stringSize)
+                            {
+                                buf = new ArraySegment<byte>(new byte[BIGBIGMSG]);
+                                RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                                tmpString += Encoding.UTF8.GetString(buf.Array, 0, RRT.Count);
+                            }
+
+                            //Console.WriteLine(tmpString);
+
+
+                            USR[ID].YourMapData = tmpString;
+
+                            USR[ID].lookingForFriends = true; // if looking is true, you try to insert your self into this player hosting ID's
+                                                              //USR[ID].pairedL[0]
+                            bool tmpDone = true;
+
+                            while (USR[ID].lookingForFriends)
+                            {
+                                buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("f"));
+                                await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                                buf = new ArraySegment<byte>(new byte[REGMSG]);
+                                await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                                tmpDone = true;
+
+                                for (int i = 0; i < USR[ID].pairedL.Length; i++)
+                                {
+
+                                    //   USR[ID].lookingForFriends = false;
+
+                                    //Console.WriteLine(USR[ID].pairedL[i].ToString());
+
+                                    if (USR[ID].pairedL[i] == 0)
+                                    {
+                                        tmpDone = false;
+                                        //USR[ID].lookingForFriends = true;
+                                        i = USR[ID].pairedL.Length;
+                                    }
+                                }
+                                if (tmpDone != false)
+                                {
+                                    USR[ID].lookingForFriends = false;
+                                }
+                            }
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("g"));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            //now main can load map
+
+                            for (int i = 0; i < USR[ID].pairedL.Length; i++)
+                            {
+
+                                for (int ii = 0; ii < USR[ID].pairedL.Length; ii++)
+                                {
+                                    USR[USR[ID].pairedL[i]].players.Add(USR[ID].pairedL[ii]);
+                                    //                                    USR[USR[ID].pairedL[i]].pairedL[ii] = USR[ID].pairedL[i]; // teams are now synced
+                                }
+                            }
+
+                            Random rnd = new Random();
+                            int Index = 0;
+
+                            while (USR[ID].teamsOrder.Count < USR[ID].players.Count)
+                            {
+                                Index = rnd.Next(USR[ID].players.Count);
+
+                                if (!USR[ID].teamsOrder.ContainsKey(Index))
+                                {
+                                    USR[ID].teamsOrder[Index] = USR[ID].players[Index];
+                                    USR[ID].teamsOrderInv[USR[ID].players[Index]] = Index;
+                                }
+
+                            }
+
+                            for (int i = 0; i < USR[ID].players.Count(); i++)
+                            {
+                                USR[USR[ID].players[i]].teamsOrder = USR[ID].teamsOrder; //set team orders
+                                USR[USR[ID].players[i]].teamsOrderInv = USR[ID].teamsOrderInv;
+                                USR[USR[ID].players[i]].YourMapData = USR[ID].YourMapData;
+                            }
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //send your map to play with to self... no idea why
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].teamsOrderInv[ID].ToString())); //send your order for team
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            USR[ID].MapID = GetNextMapID(ID, cmd);
+
+                            InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
+
+                            Console.WriteLine("done FR setup");
+                        }
+
+                        else if ("JFMS" == resultR)
+                        { // join friend match start
+                            USR[ID].MapID = 0;
+                            USR[ID].MatchReady = false;
+                            USR[ID].CharLoadReady = false;
+
+                            USR[ID].players.Clear();
+                            USR[ID].teamsOrder.Clear();
+                            USR[ID].teamsOrderInv.Clear();
+                            USR[ID].MatchType = 1;
+                            USR[ID].paired = 0;
+                            USR[ID].yourOrder = 0;
+                            USR[ID].YourMapData = "";
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data  - you get id of player you want to join
+
+                            long idToJoin = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            //Console.WriteLine(idToJoin.ToString());
+                            //Console.WriteLine(USR[idToJoin].lookingForFriends);
+                            //Console.WriteLine(USR.ContainsKey(idToJoin));
+
+                            if (USR.ContainsKey(idToJoin) && USR[idToJoin].lookingForFriends)
+                            {
+                                bool gotToSendID = false;
+                                for (int i = 0; i < USR[idToJoin].pairedL.Length; i++)
+                                {
+                                    if (USR[idToJoin].pairedL[i] == 0)
+                                    {
+                                        gotToSendID = true;
+                                        USR[idToJoin].pairedL[i] = ID; //you are joined in their match now - match starter sets every one at the end to the same pairedL array values
+                                        i = USR[idToJoin].pairedL.Length;
+                                    }
+                                }
+                                if (gotToSendID)
+                                {
+                                    Console.WriteLine("joined friend");
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("GOOD"));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+
+                                    while (USR[ID].teamsOrderInv.Count == 0)
+                                    {
+                                        //Console.WriteLine("waiting");
+                                        buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("g"));
+                                        await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+                                        // wait until main player is ready and passed data
+                                        await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                                    }
+                                    Console.WriteLine("waiting done");
+
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("u"));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent - for the rand f
+
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //send your map to play with to self... no idea why
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].teamsOrderInv[ID].ToString())); //send your order for team
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+
+                                    //now stall these playes with loop of stuff until main player has enough players 
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Can't join friend 2");
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("BAD"));
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Can't join friend 1");
+                                buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("BAD"));
+                                await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+                            }
+
+
+
+                        }
                         else if ("NTSCRR" == resultR)
                         {
 
@@ -653,7 +1147,7 @@ namespace HLWSS
 
                             string tmpString = "";
 
-                            while(tmpString.Length < stringSize)
+                            while (tmpString.Length < stringSize)
                             {
 
                                 bufOfCharDat = new ArraySegment<byte>(new byte[BIGBIGMSG]);
@@ -661,7 +1155,7 @@ namespace HLWSS
 
                                 tmpString += Encoding.UTF8.GetString(bufOfCharDat.Array, 0, RRT.Count);
                             }
-                            
+
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
@@ -730,8 +1224,29 @@ namespace HLWSS
                                 USR[USR[ID].players[i]].TakeMapDataFrom = ID;
                             }
 
+                            if (USR[ID].MapID != 0)
+                            {
+
+                                cmd = new MySqlCommand();
+                                cmd.CommandText = "SELECT MapID FROM mapsavedata WHERE MapID = +" + USR[ID].MapID.ToString();
+                                cmd.Connection = sqlDat.connection;
+                                cmd.CommandType = CommandType.Text;
+                                long result = (Int64)cmd.ExecuteScalar();
+
+                                if (result == 0)
+                                {
+                                    InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
+                                }
+                                else
+                                {
+                                    UpdateMapIDFromSaveMapID(ID, cmd);
+                                }
+
+                                //      then insert with using map id into mapsavedata the map data
+                            }
+
                         }
-                        else if ("h" == resultR)
+                        else if ("h" == resultR && firstTID == true)
                         {// send id over to not allow cheaters :anger:
                             //Console.WriteLine("YARR"+ID.ToString());
 
@@ -814,24 +1329,46 @@ namespace HLWSS
 
                             if (USR[ID].NeedToSendMapData)
                             {
-                               
-                                buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("NTSMD"));
-                                await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+                                if (USR[ID].MapID == 0)
+                                {
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("NTSMD"));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
-                                
-                                await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
-                                
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
-                                buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes((USR[USR[ID].TakeMapDataFrom].YourMapData).ToString()));
-                                await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
-                                
-                                
-                                await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
-                                
-                                USR[ID].NeedToSendMapData = false;
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes((USR[USR[ID].TakeMapDataFrom].YourMapData).ToString()));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+
+                                    USR[ID].NeedToSendMapData = false;
+                                }
+                                else
+                                {
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("NTSMD"));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+
+
+                                    buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes((USR[USR[ID].TakeMapDataFrom].YourMapData).ToString()));
+                                    await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+
+
+                                    await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+
+                                    USR[ID].NeedToSendMapData = false;
+                                }
                             }
                             else
                             {
