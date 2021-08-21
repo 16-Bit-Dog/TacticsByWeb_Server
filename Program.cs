@@ -380,6 +380,8 @@ namespace HLWSS
             public CharDatL YourCharArr = new CharDatL();
             public string Username = "";
 
+            public string YourMapName = "";
+
             public long MapID = 0;
             public string YourMapData = "";
             public bool NeedToSendMapData = false;
@@ -392,17 +394,15 @@ namespace HLWSS
 
         void InsertMapIDIntoSaveMapID(long ID, long MapID, MySqlCommand cmd)
         {
-            LocalMatchSaveMapData NameRead = JsonConvert.DeserializeObject<LocalMatchSaveMapData>(USR[ID].YourMapData); //pass char array data into CharDat[] array {this is same array as in game}
-
-
+            
             List<long> tmpIDs = new List<long> { 0, 0, 0, 0, 0 };
             for (int i = 0; i < USR[ID].players.Count; i++)
             {
                 tmpIDs[i] = USR[ID].players[i];
             }
             cmd = new MySqlCommand();
-            cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID) VALUES ( " + tmpIDs[0].ToString() + "," + tmpIDs[1].ToString() + "," + tmpIDs[2].ToString() + "," + tmpIDs[3].ToString() + "," + tmpIDs[4].ToString() + ",'" + NameRead.SaveMapName + "','" + USR[ID].YourMapData + "'," + USR[ID].MapID + ")";
-            cmd.Connection = sqlDat.connection;
+            cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID) VALUES ( " + tmpIDs[0].ToString() + "," + tmpIDs[1].ToString() + "," + tmpIDs[2].ToString() + "," + tmpIDs[3].ToString() + "," + tmpIDs[4].ToString() + ",'" + USR[ID].YourMapName + "','" + USR[ID].YourMapData + "'," + USR[ID].MapID + ")";
+            cmd.Connection = sqlDat.connection; 
             cmd.CommandType = CommandType.Text;
             cmd.ExecuteNonQuery();
         }
@@ -484,6 +484,7 @@ namespace HLWSS
                             buf = new ArraySegment<byte>(new byte[REGMSG]);
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
                             receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
 
                             email = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
@@ -495,7 +496,7 @@ namespace HLWSS
                             cmd.CommandText = "SELECT COUNT(email) from (SELECT email FROM player WHERE email = '" + email + "') AS T";
                             cmd.Connection = sqlDat.connection;
                             cmd.CommandType = CommandType.Text;
-                            MySqlDataReader reader;
+
                             Int64 result = (Int64)cmd.ExecuteScalar();
                             //Console.WriteLine(result);
                             if (result == 0)
@@ -504,6 +505,7 @@ namespace HLWSS
                                 buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("Y"));
                                 await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                buf = new ArraySegment<byte>(new byte[REGMSG]);
                                 receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
                                 username = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
 
@@ -514,12 +516,14 @@ namespace HLWSS
                                 cmd.CommandType = CommandType.Text;
                                 result = (Int64)cmd.ExecuteScalar();
                                 Console.WriteLine(username);
+
                                 if (result == 0)
                                 {
                                     //    reader.Close();
                                     buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("Y"));
                                     await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                    buf = new ArraySegment<byte>(new byte[REGMSG]);
                                     receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
                                     password = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
 
@@ -529,12 +533,12 @@ namespace HLWSS
                                     cmd.CommandText = "SELECT COUNT(ID) FROM player";
                                     cmd.Connection = sqlDat.connection;
                                     cmd.CommandType = CommandType.Text;
-                                    reader = cmd.ExecuteReader();
+                                    MySqlDataReader reader = cmd.ExecuteReader();
                                     while (reader.Read())
                                     {
                                         ID = reader.GetInt64(0);
                                     }
-
+                                    reader.Close();
 
                                     cmd = new MySqlCommand();
                                     cmd.CommandText = "INSERT INTO player (ID, email, pass, username) VALUES ( (( " + ID.ToString() + ")) ,'" + email + "', '" + password + "','" + username + "')";
@@ -594,6 +598,8 @@ namespace HLWSS
                             Console.WriteLine("send ID");
 
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
                             receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
 
 
@@ -621,9 +627,10 @@ namespace HLWSS
                             string username;
                             string password;
 
-                            buf = new ArraySegment<byte>(new byte[8192]);
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
-
+                            
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
                             receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
 
                             email = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
@@ -633,7 +640,7 @@ namespace HLWSS
                             cmd.CommandText = "SELECT COUNT(email) from (SELECT email FROM player WHERE email = '" + email + "') AS T";
                             cmd.Connection = sqlDat.connection;
                             cmd.CommandType = CommandType.Text;
-                            MySqlDataReader reader;
+                            
                             Int64 result = (Int64)cmd.ExecuteScalar();
 
                             if (result != 0)
@@ -642,6 +649,7 @@ namespace HLWSS
                                 buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("Y"));
                                 await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                buf = new ArraySegment<byte>(new byte[REGMSG]);
                                 receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
                                 password = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
                                 //Check if Password is in Sql collumn of email, if inside; you continue: 
@@ -657,6 +665,7 @@ namespace HLWSS
                                     buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("Y"));
                                     await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                    buf = new ArraySegment<byte>(new byte[REGMSG]);
                                     receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None);
 
                                     // make new account using MAX(ID) - or SELECT COUNT(ID+1)  FROM `player`;
@@ -670,6 +679,7 @@ namespace HLWSS
                                     buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
                                     await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                    buf = new ArraySegment<byte>(new byte[REGMSG]);
                                     await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
                                     cmd = new MySqlCommand();
@@ -681,6 +691,7 @@ namespace HLWSS
                                     buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(username.ToString()));
                                     await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                                    buf = new ArraySegment<byte>(new byte[REGMSG]);
                                     await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
                                     USR[ID] = new UserSpecificData();
@@ -727,9 +738,10 @@ namespace HLWSS
                                 MapID.Add(sqlReader.GetInt64(1)); // map id
                                 MapNameDat.Add(sqlReader.GetString(2)); // map name
                             }
+                            sqlReader.Close();
 
 
-                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(MapNameDat))); //<List<string>>
+                           buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(MapNameDat))); //<List<string>>
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
                             await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
@@ -760,6 +772,7 @@ namespace HLWSS
                                 MapID.Add(sqlReader.GetInt64(1)); // map id
                                 MapNameDat.Add(sqlReader.GetString(2)); // map name
                             }
+                            sqlReader.Close();
 
                             buf = new ArraySegment<byte>(new byte[REGMSG]);
 
@@ -1024,14 +1037,24 @@ namespace HLWSS
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //send your map to play with to self... no idea why
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
                             await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].teamsOrderInv[ID].ToString())); //send your order for team
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
                             await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
                             USR[ID].MapID = GetNextMapID(ID, cmd);
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].teamsOrderInv[ID].ToString())); //send your order for team
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            USR[ID].YourMapName = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
 
                             InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
 
@@ -1235,6 +1258,9 @@ namespace HLWSS
 
                                 if (result == 0)
                                 {
+                                    LocalMatchSaveMapData NameRead = JsonConvert.DeserializeObject<LocalMatchSaveMapData>(USR[ID].YourMapData); //pass char array data into CharDat[] array {this is same array as in game}
+                                    USR[ID].YourMapName = NameRead.SaveMapName;
+
                                     InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
                                 }
                                 else
@@ -1399,14 +1425,18 @@ namespace HLWSS
 
             catch (Exception e)
             {
+                
                 Console.WriteLine("Exception: {0}", e);
 
-                MySqlCommand cmd = new MySqlCommand();
-                cmd.CommandText = "DELETE FROM randommatchpool WHERE ID = " + ID.ToString(); //check for error
-                cmd.Connection = sqlDat.connection;
-                cmd.CommandType = CommandType.Text;
-                cmd.ExecuteNonQuery();
-
+                try
+                {
+                    MySqlCommand cmd = new MySqlCommand();
+                    cmd.CommandText = "DELETE FROM randommatchpool WHERE ID = " + ID.ToString(); //check for error
+                    cmd.Connection = sqlDat.connection;
+                    cmd.CommandType = CommandType.Text;
+                    cmd.ExecuteNonQuery();
+                }
+                catch { }
             }
 
             if (webSocket != null) webSocket.Dispose();
