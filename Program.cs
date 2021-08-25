@@ -366,7 +366,7 @@ namespace HLWSS
 
         class UserSpecificData
         {
-
+            public List<long> TmpMapID = new List<long>();
             public List<long> players = new List<long>();
             public Dictionary<int, long> teamsOrder = new Dictionary<int, long>() { { 0, 0 } };
             public Dictionary<long, int> teamsOrderInv = new Dictionary<long, int>() { { 0, 0 } };
@@ -391,6 +391,59 @@ namespace HLWSS
         };
 
         Dictionary<long, UserSpecificData> USR = new Dictionary<long, UserSpecificData>(); //id links to class with stuff
+
+        long NumberOfMapForPID(long ID, MySqlCommand cmd)
+        {
+            cmd = new MySqlCommand();
+            cmd.CommandText = "SELECT COUNT(AuthID) FROM uploadmaps where AuthID = "+ID.ToString();
+            cmd.Connection = sqlDat.connection;
+            cmd.CommandType = CommandType.Text;
+
+            return (Int64)cmd.ExecuteScalar();
+        }
+
+        void uploadMapToSQL(long ID, string MapName, int MapTeamCount, string MapDat, MySqlCommand cmd)
+        {
+
+            if (NumberOfMapForPID(ID, cmd) <101 ) { //count AuthID - if maps is less than 100 - you can make - limit 100, 
+                cmd = new MySqlCommand();
+                cmd.CommandText = "INSERT INTO uploadmaps (AuthID,MapID,MapName,JsonMap, Downloads, PlayerCount, Comment) VALUES ( " + ID.ToString() + "," + "((SELECT COUNT(MapID) FROM uploadmaps AS T))" + ",'" + MapName + "','" + MapDat + "',0,"+ MapTeamCount.ToString()+",'')"; //comment is a json of string array/list
+                cmd.Connection = sqlDat.connection;
+                cmd.CommandType = CommandType.Text;
+                cmd.ExecuteNonQuery();
+            }
+        }
+
+        void deleteMapFromSQLPlayer(long ID, int MapIndex, MySqlCommand cmd)
+        {
+            USR[ID].MapID = 0;
+            //checked for map id and pass map name to add map - also save map id when loaded
+            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+            cmd.CommandText = "SELECT MapID FROM (SELECT * FROM `uploadmaps` WHERE AuthID = " + ID + ") AS T";
+            cmd.Connection = sqlDat.connection;
+            cmd.CommandType = CommandType.Text;
+            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+            List<long> MapIDL = new List<long>();
+
+            while (sqlReader.Read()) //iterate rows
+            {//Get values
+                MapIDL.Add(sqlReader.GetInt64(0)); // map name
+            }
+            sqlReader.Close();
+            try
+            {
+                long MapID = MapIDL[MapIndex];
+
+                cmd = new MySqlCommand();
+                cmd.CommandText = "UPDATE uploadmaps SET JsonMap = '',AuthID = 0, MapName = '', Downloads = 0,PlayerCount = 0, Comment='' where MapID = " + MapID.ToString();
+                cmd.Connection = sqlDat.connection;
+                cmd.CommandType = CommandType.Text;
+                cmd.ExecuteNonQuery();
+            }
+            catch { }
+
+        }
 
         void InsertMapIDIntoSaveMapID(long ID, long MapID, MySqlCommand cmd)
         {
@@ -718,6 +771,37 @@ namespace HLWSS
                             }
 
                         }
+
+                        else if (resultR == "FMPU")
+                        {
+                            USR[ID].MapID = 0;
+                            //checked for map id and pass map name to add map - also save map id when loaded
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+                            cmd.CommandText = "SELECT MapName FROM (SELECT * FROM `uploadmaps` WHERE AuthID = " + ID +") AS T";
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            //List<string> JsonDat = new List<string>();
+                            //List<long> MapID = new List<long>();
+                            List<string> MapNameDat = new List<string>();
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                //JsonDat.Add(sqlReader.GetString(0)); // Json
+                                //MapID.Add(sqlReader.GetInt64(1)); // map id
+                                MapNameDat.Add(sqlReader.GetString(0)); // map name
+                            }
+                            sqlReader.Close();
+
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(MapNameDat))); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                        }
+
                         else if (resultR == "FMIP")
                         {
                             USR[ID].MapID = 0;
@@ -746,9 +830,50 @@ namespace HLWSS
 
                             await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
-                            //TODO: send mapname, and ask character to pick them - in order they repisent when sent back a array index which links to MapID and Json ID, set player map ID before match is loaded to that map id from index and load from that map index battle 1 logic
-
                         }
+                        else if (resultR == "SBAGMPU")
+                        {
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("f")); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            USR[ID].MapID = 0;
+                            //checked for map id and pass map name to add map - also save map id when loaded
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+                            cmd.CommandText = "SELECT JsonMap, MapID, MapName FROM (SELECT * FROM `uploadmaps` WHERE AuthID = " + ID + ") AS T";
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            List<string> JsonDat = new List<string>();
+                            List<long> MapID = new List<long>();
+                            List<string> MapNameDat = new List<string>();
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                JsonDat.Add(sqlReader.GetString(0)); // Json
+                                MapID.Add(sqlReader.GetInt64(1)); // map id
+                                MapNameDat.Add(sqlReader.GetString(2)); // map name
+                            }
+                            sqlReader.Close();
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+
+                            receiveResult = await webSocket.ReceiveAsync(buf, CancellationToken.None); //await webSocket.ReceiveAsync(buf, CancellationToken.None);
+
+                            int MIDTMP = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count));
+
+                            USR[ID].MapID = MapID[MIDTMP];
+
+                            USR[ID].YourMapData = JsonDat[MIDTMP];
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            USR[ID].MatchType = 1;
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None);
+                        }
+
                         else if (resultR == "SBAGMIP")
                         {
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes("f")); //<List<string>>
@@ -1153,6 +1278,172 @@ namespace HLWSS
 
 
 
+                        }
+                        else if ("DUMP" == resultR)
+                        {
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            deleteMapFromSQLPlayer(ID, Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count)), cmd);
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                        }
+
+                        else if("UPMAP" == resultR)
+                        {
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            string MapNameFull = Encoding.UTF8.GetString(buf.Array, 0, RRT.Count);
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            int MapTeamCount = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+                            
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            int stringSize = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            string tmpString = "";
+
+                            while (tmpString.Length < stringSize)
+                            {
+
+                                bufOfCharDat = new ArraySegment<byte>(new byte[BIGBIGMSG]);
+                                RRT = await webSocket.ReceiveAsync(bufOfCharDat, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                                tmpString += Encoding.UTF8.GetString(bufOfCharDat.Array, 0, RRT.Count);
+                            }
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+
+                            uploadMapToSQL(ID, MapNameFull, MapTeamCount, tmpString, cmd);
+
+                        }
+
+                        else if ("PGDMAP" == resultR)
+                        {
+                            string SearchString = "";
+                            int TeamCount = 0;
+                            int SearchType = 0;
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            SearchString = Encoding.UTF8.GetString(buf.Array, 0, RRT.Count);
+                            //int stringSize = Int32.Parse(Encoding.UTF8.GetString(bufOfCharDat.Array, 0, RRT.Count));
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            TeamCount = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            SearchType = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+
+                            if (SearchType == 0)
+                            {
+                                cmd.CommandText = "SELECT MapName, Downloads, MapID from uploadmaps WHERE MapName like '" + SearchString + "%'  and PlayerCount = "+TeamCount.ToString()+" LIMIT 30";
+                            }
+                            else if(SearchType == 1)
+                            {
+                                cmd.CommandText = "SELECT MapName, Downloads, MapID from uploadmaps WHERE MapID = " + SearchString + "  and PlayerCount = " + TeamCount.ToString() + " LIMIT 3";
+                            }
+                            else if(SearchType == 2)
+                            {
+                                cmd.CommandText = "SELECT MapName, Downloads, MapID from uploadmaps WHERE AuthID = " + SearchString + "  and PlayerCount = " + TeamCount.ToString() + " LIMIT 100";
+                            }
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            List<string> MapName = new List<string>();
+                            List<long> Downloads = new List<long>();
+                            USR[ID].TmpMapID.Clear();
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                MapName.Add(sqlReader.GetString(0)); // map name
+                                Downloads.Add(sqlReader.GetInt64(1));
+                                USR[ID].TmpMapID.Add(sqlReader.GetInt64(2));
+                            }
+                            sqlReader.Close();
+
+
+                            for(int i = 0; i < MapName.Count; i++)
+                            {
+                                MapName[i] += "\nDownloads: " + Downloads[i].ToString();
+                            }
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes( JsonConvert.SerializeObject(MapName) ));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            
+
+                        }
+                        else if ("GDMMAP" == resultR)
+                        {
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(ID.ToString()));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+                            buf = new ArraySegment<byte>(new byte[REGMSG]);
+                            WebSocketReceiveResult RRT = await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
+
+                            int selectedI = Int32.Parse(Encoding.UTF8.GetString(buf.Array, 0, RRT.Count));
+
+                            
+                            cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
+                            cmd.CommandText = "SELECT jSONmAP FROM uploadmaps WHERE MapID = " + USR[ID].TmpMapID[selectedI].ToString();
+                            cmd.Connection = sqlDat.connection;
+                            cmd.CommandType = CommandType.Text;
+                            MySqlDataReader sqlReader = cmd.ExecuteReader();
+
+                            string MD = ""; 
+
+                            while (sqlReader.Read()) //iterate rows
+                            {//Get values
+                                MD = sqlReader.GetString(0); // map name
+                            }
+                            sqlReader.Close();
+                            //counts as download - add if below certain count
+
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(MD));
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+                            
                         }
                         else if ("NTSCRR" == resultR)
                         {
