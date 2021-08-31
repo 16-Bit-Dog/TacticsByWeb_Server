@@ -445,19 +445,38 @@ namespace HLWSS
 
         }
 
-        void InsertMapIDIntoSaveMapID(long ID, long MapID, MySqlCommand cmd)
+        void InsertMapIDIntoSaveMapID(long ID, long MapID, MySqlCommand cmd, bool dummy = false)
         {
-            
+
+            LocalMatchSaveMapData NameRead = JsonConvert.DeserializeObject<LocalMatchSaveMapData>(USR[ID].YourMapData);
+
+            int TeamCount = USR[ID].players.Count; 
+
             List<long> tmpIDs = new List<long> { 0, 0, 0, 0, 0 };
+            List<int> tmpIDOrder = new List<int> { -1, -1, -1, -1, -1 };
+
             for (int i = 0; i < USR[ID].players.Count; i++)
             {
                 tmpIDs[i] = USR[ID].players[i];
+                tmpIDOrder[i] = USR[ID].teamsOrderInv[ USR[ID].players[i] ];
             }
-            cmd = new MySqlCommand();
-            cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID) VALUES ( " + tmpIDs[0].ToString() + "," + tmpIDs[1].ToString() + "," + tmpIDs[2].ToString() + "," + tmpIDs[3].ToString() + "," + tmpIDs[4].ToString() + ",'" + USR[ID].YourMapName + "','" + USR[ID].YourMapData + "'," + USR[ID].MapID + ")";
-            cmd.Connection = sqlDat.connection; 
-            cmd.CommandType = CommandType.Text;
-            cmd.ExecuteNonQuery();
+
+            if (dummy == false)
+            {
+                cmd = new MySqlCommand(); //verbose order versus singled incase I want to make use of it like this
+                cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID,ID1Order,ID2Order,ID3Order,ID4Order,ID5Order,TotalTeams) VALUES ( " + tmpIDs[0].ToString() + "," + tmpIDs[1].ToString() + "," + tmpIDs[2].ToString() + "," + tmpIDs[3].ToString() + "," + tmpIDs[4].ToString() + ",'" + USR[ID].YourMapName + "','" + USR[ID].YourMapData + "'," + USR[ID].MapID + "," + tmpIDOrder[0].ToString() + "," + tmpIDOrder[1].ToString() + "," + tmpIDOrder[2].ToString() + "," + tmpIDOrder[3].ToString() + "," + tmpIDOrder[4].ToString() + "," + TeamCount.ToString() + ")";
+                cmd.Connection = sqlDat.connection;
+                cmd.CommandType = CommandType.Text;
+                cmd.ExecuteNonQuery();
+            }
+            else
+            {
+                cmd = new MySqlCommand(); //verbose order versus singled incase I want to make use of it like this
+                cmd.CommandText = "INSERT INTO mapsavedata (ID1,ID2,ID3,ID4,ID5,MapName,JsonString,MapID,ID1Order,ID2Order,ID3Order,ID4Order,ID5Order,TotalTeams) VALUES ( " + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + ",'',''," + USR[ID].MapID + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + "," + 0.ToString() + ")";
+                cmd.Connection = sqlDat.connection;
+                cmd.CommandType = CommandType.Text;
+                cmd.ExecuteNonQuery();
+            }
         }
 
         long GetNextMapID(long ID, MySqlCommand cmd)
@@ -853,6 +872,7 @@ namespace HLWSS
                                 JsonDat.Add(sqlReader.GetString(0)); // Json
                                 MapID.Add(sqlReader.GetInt64(1)); // map id
                                 MapNameDat.Add(sqlReader.GetString(2)); // map name
+                                
                             }
                             sqlReader.Close();
 
@@ -865,6 +885,7 @@ namespace HLWSS
                             USR[ID].MapID = MapID[MIDTMP];
 
                             USR[ID].YourMapData = JsonDat[MIDTMP];
+
 
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //<List<string>>
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
@@ -882,7 +903,16 @@ namespace HLWSS
                             USR[ID].MapID = 0;
                             //checked for map id and pass map name to add map - also save map id when loaded
                             cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
-                            cmd.CommandText = "SELECT JsonString, MapID, MapName FROM (SELECT * FROM `mapsavedata` WHERE ID1 = " + ID + " || ID2 = " + ID + " || ID3 = " + ID + " || ID4 = " + ID + " || ID5 = " + ID + ") AS T";
+                            cmd.CommandText = "SELECT JsonString, MapID, MapName, CASE WHEN(ID1 = " + ID + ") THEN ID1Order WHEN(ID2 = " + ID + ") THEN ID2Order WHEN(ID3 = " + ID + ") THEN ID3Order WHEN(ID4 = " + ID+ ") THEN ID4Order WHEN (ID5 = " + ID + ") THEN ID5Order end as IDOrder FROM (SELECT * FROM `mapsavedata` WHERE ID1 = " + ID + " || ID2 = " + ID + " || ID3 = " + ID + " || ID4 = " + ID + " || ID5 = " + ID + ") AS T";
+                            /*
+SELECT JsonString, MapID, MapName, CASE  
+        WHEN (ID1=4) THEN ID1Order 
+        WHEN (ID2=4) THEN ID2Order
+        WHEN (ID3=4) THEN ID3Order
+        WHEN (ID4=4) THEN ID4Order
+        WHEN (ID5=4) THEN ID5Order END AS IDOrder FROM  `mapsavedata` WHERE ID1 = 4
+                             */
+
                             cmd.Connection = sqlDat.connection;
                             cmd.CommandType = CommandType.Text;
                             MySqlDataReader sqlReader = cmd.ExecuteReader();
@@ -890,12 +920,14 @@ namespace HLWSS
                             List<string> JsonDat = new List<string>();
                             List<long> MapID = new List<long>();
                             List<string> MapNameDat = new List<string>();
+                            List<int> YourTeamOrder = new List<int>();
 
                             while (sqlReader.Read()) //iterate rows
                             {//Get values
                                 JsonDat.Add(sqlReader.GetString(0)); // Json
                                 MapID.Add(sqlReader.GetInt64(1)); // map id
                                 MapNameDat.Add(sqlReader.GetString(2)); // map name
+                                YourTeamOrder.Add(sqlReader.GetInt32(3));
                             }
                             sqlReader.Close();
 
@@ -908,6 +940,14 @@ namespace HLWSS
                             USR[ID].MapID = MapID[MIDTMP];
 
                             USR[ID].YourMapData = JsonDat[MIDTMP];
+
+                            
+                            buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(YourTeamOrder[MIDTMP].ToString())); //<List<string>>
+                            await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
+
+
+                            await webSocket.ReceiveAsync(buf, CancellationToken.None);
+
 
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //<List<string>>
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
@@ -1151,12 +1191,14 @@ namespace HLWSS
                                 }
 
                             }
+                            USR[ID].MapID = GetNextMapID(ID, cmd);
 
                             for (int i = 0; i < USR[ID].players.Count(); i++)
                             {
                                 USR[USR[ID].players[i]].teamsOrder = USR[ID].teamsOrder; //set team orders
                                 USR[USR[ID].players[i]].teamsOrderInv = USR[ID].teamsOrderInv;
                                 USR[USR[ID].players[i]].YourMapData = USR[ID].YourMapData;
+                                USR[USR[ID].players[i]].MapID = USR[ID].MapID;
                             }
 
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].YourMapData)); //send your map to play with to self... no idea why
@@ -1171,8 +1213,6 @@ namespace HLWSS
                             buf = new ArraySegment<byte>(new byte[REGMSG]);
                             await webSocket.ReceiveAsync(buf, CancellationToken.None); // wait until recive data to comfirm you sent
 
-                            USR[ID].MapID = GetNextMapID(ID, cmd);
-
                             buf = new ArraySegment<byte>(Encoding.UTF8.GetBytes(USR[ID].teamsOrderInv[ID].ToString())); //send your order for team
                             await webSocket.SendAsync(buf, WebSocketMessageType.Text, receiveResult.EndOfMessage, CancellationToken.None);
 
@@ -1181,7 +1221,7 @@ namespace HLWSS
 
                             USR[ID].YourMapName = Encoding.UTF8.GetString(buf.Array, 0, receiveResult.Count);
 
-                            InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
+                            InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd, true); //dummy insert
 
                             Console.WriteLine("done FR setup");
                         }
@@ -1427,7 +1467,7 @@ namespace HLWSS
 
                             
                             cmd = new MySqlCommand(); //get all maps in mapsavedata 0 ID1, ID2, ID3, ID4, ID5, MapName, JsonString, MapID    -   then send how many there are - resize array on client, then for that range do a send get loop to fill map names on client - select, and then it fetches JsonString from server to load game from 
-                            cmd.CommandText = "SELECT jSONmAP FROM uploadmaps WHERE MapID = " + USR[ID].TmpMapID[selectedI].ToString();
+                            cmd.CommandText = "SELECT JsonMap FROM uploadmaps WHERE MapID = " + USR[ID].TmpMapID[selectedI].ToString();
                             cmd.Connection = sqlDat.connection;
                             cmd.CommandType = CommandType.Text;
                             MySqlDataReader sqlReader = cmd.ExecuteReader();
@@ -1542,24 +1582,42 @@ namespace HLWSS
                             {
 
                                 cmd = new MySqlCommand();
-                                cmd.CommandText = "SELECT MapID FROM mapsavedata WHERE MapID = +" + USR[ID].MapID.ToString();
+                                cmd.CommandText = "SELECT Count(MapID) FROM mapsavedata WHERE MapID = " + USR[ID].MapID.ToString();
                                 cmd.Connection = sqlDat.connection;
                                 cmd.CommandType = CommandType.Text;
                                 long result = (Int64)cmd.ExecuteScalar();
 
-                                if (result == 0)
+                                if (result != 0)
                                 {
-                                    LocalMatchSaveMapData NameRead = JsonConvert.DeserializeObject<LocalMatchSaveMapData>(USR[ID].YourMapData); //pass char array data into CharDat[] array {this is same array as in game}
-                                    USR[ID].YourMapName = NameRead.SaveMapName;
+                                    cmd = new MySqlCommand();
+                                    cmd.CommandText = "SELECT ID1 FROM mapsavedata WHERE MapID = " + USR[ID].MapID.ToString();
+                                    cmd.Connection = sqlDat.connection;
+                                    cmd.CommandType = CommandType.Text;
+                                    result = (Int64)cmd.ExecuteScalar();
 
-                                    InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
-                                }
-                                else
-                                {
-                                    UpdateMapIDFromSaveMapID(ID, cmd);
-                                }
+                                    if (result == 0)
+                                    {
+                                        //Console.WriteLine("new map");
+                                        cmd = new MySqlCommand();
+                                        cmd.CommandText = "DELETE FROM mapsavedata WHERE MapID = " + USR[ID].MapID.ToString();
+                                        cmd.Connection = sqlDat.connection;
+                                        cmd.CommandType = CommandType.Text;
+                                        cmd.ExecuteNonQuery();
 
+                                        InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd, false);
+                                        //InsertMapIDIntoSaveMapID(ID, USR[ID].MapID, cmd);
+                                    }
+                                    else
+                                    {
+                                        //Console.WriteLine("Update Map");
+                                        UpdateMapIDFromSaveMapID(ID, cmd);
+                                    }
+                                }
                                 //      then insert with using map id into mapsavedata the map data
+                            }
+                            else
+                            {
+                                
                             }
 
                         }
